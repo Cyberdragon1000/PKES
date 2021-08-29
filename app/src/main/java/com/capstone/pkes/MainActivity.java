@@ -17,8 +17,6 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
-import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -30,13 +28,13 @@ import androidx.core.content.ContextCompat;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
     static byte[] salt = new byte[8];
     static byte[] IV = new byte[16];
-    TextView t1;// text views simply for viewing
-    Button b1,b2,b3,b4;
+    TextView t1,t2,t3,t4;// text views simply for viewing
     LocationManager locationManager;// for gps location
     SensorManager mSensorManager;// for sensor data
     private Sensor mAccelerometer;// for acceleration data
@@ -49,12 +47,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         super.onCreate(savedInstanceState);
         checkPermission();
         setContentView(R.layout.activity_main);
-        t1 = findViewById(R.id.justtext);
+        t1 = findViewById(R.id.text1);
+        t2 = findViewById(R.id.text2);
+        t3 = findViewById(R.id.text3);
+        t4 = findViewById(R.id.text4);
 
-        b1 =findViewById(R.id.button);
-        b2=findViewById(R.id.button3);
-        b3=findViewById(R.id.button4);
-        b4=findViewById(R.id.button2);
+
 
         mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -89,10 +87,13 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         super.onPause();
     }
 
+    @SuppressLint("SetTextI18n")
     @Override
     public void onLocationChanged(Location loc) {
         latitude_key = Math.toRadians(loc.getLatitude());
         longitude_key=Math.toRadians(loc.getLongitude());
+        double result= gps_distance.calculate_distance(latitude_key,longitude_key, latitude_car,longitude_car);
+        t4.setText("\nlatitude:"+ latitude_key +"\nlongitude"+longitude_key+ "\ndistance :"+result);
     }
 
 
@@ -108,15 +109,15 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
             t1.setText("X : " + x1 + "Y : " + y1 + "Z : " + z1);
         }
         float[] results= activity_prediction.activityPrediction();
-
-        t1.setText( "  downstairs : "+ activity_prediction.round(results[0]) +
-                "\n  jogging : "+ activity_prediction.round(results[1]) +
-                "\n  sitting : "  + activity_prediction.round(results[2]) +
-                "\n  standing : " + activity_prediction.round(results[3]) +
-                "\n  upstairs : " + activity_prediction.round(results[4]) +
-                "\n  walking : "  + activity_prediction.round(results[5])
-        );
-
+        if( results!=null) {
+            t2.setText("  downstairs : " + activity_prediction.round(results[0]) +
+                    "\n  jogging : " + activity_prediction.round(results[1]) +
+                    "\n  sitting : " + activity_prediction.round(results[2]) +
+                    "\n  standing : " + activity_prediction.round(results[3]) +
+                    "\n  upstairs : " + activity_prediction.round(results[4]) +
+                    "\n  walking : " + activity_prediction.round(results[5])
+            );
+        }
         activity_prediction.x.add(event.values[0]);
         activity_prediction.y.add(event.values[1]);
         activity_prediction.z.add(event.values[2]);
@@ -133,7 +134,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     @SuppressLint("SetTextI18n")
     public void testing(){
 
-        b1.setOnClickListener(v -> {
             String key_text="the_password";//any key string
             dataencryption.random.nextBytes(salt);//salt for key gen
             dataencryption.random.nextBytes(IV);//iv for encryption
@@ -152,17 +152,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
             String deciphered= dataencryption.decrypt(ciphered,key, IV);
 
-            t1.setText(deciphered);
+            t3.setText(deciphered+"\n"+ Arrays.toString(key) +"\n"+ Arrays.toString(ciphered)+"\n");
 
-        });
 
-        double result= gps_distance.calculate_distance(latitude_key,longitude_key, latitude_car,longitude_car);
-        t1.setText("latitude:"+ latitude_key +"longitude"+longitude_key+ "results"+result);
+
     }
-
-
-
-
 
     //check if we got the perms :)
     private void checkPermission() {

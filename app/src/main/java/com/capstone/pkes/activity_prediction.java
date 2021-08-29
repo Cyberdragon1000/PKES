@@ -34,8 +34,7 @@ public class activity_prediction {
     //predicts activity using xyz array samples and returns probability array of predictions
     @SuppressLint("SetTextI18n")
     static float[] activityPrediction() {
-
-        float[] results= new float[]{0, 0, 0, 0, 0, 0};
+        float[] results=null;
         if (x.size() == N_SAMPLES && y.size() == N_SAMPLES && z.size() == N_SAMPLES) {
             List<Float> data = new ArrayList<>();
             data.addAll(x);
