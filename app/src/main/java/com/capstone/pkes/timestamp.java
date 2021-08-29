@@ -7,8 +7,8 @@ import java.util.Calendar;
 
 public class timestamp {
 
-
-    static String gettimer(){
+//generates a timestamp of format 'daymonthyear-hourminutesecond'
+    static String gettimestamp(){
         Calendar c = Calendar.getInstance();
         @SuppressLint("SimpleDateFormat") SimpleDateFormat dateformat = new SimpleDateFormat("ddMMMyyyy-hhmmss");
         return dateformat.format(c.getTime());
