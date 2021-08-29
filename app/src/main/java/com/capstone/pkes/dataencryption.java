@@ -2,6 +2,7 @@ package com.capstone.pkes;
 
 import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 
@@ -14,8 +15,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class dataencryption {
 
-    static byte[] salt = new byte[8];
-    static byte[] IV = new byte[16];
+    static SecureRandom random = new SecureRandom();//RNG for iv and salt
 
     //generates hash key of required length using given salt and text key
     static byte[] create_hash_of_textkey(String keytext, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {

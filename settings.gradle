@@ -1,2 +1,3 @@
 rootProject.name = "PKES"
 include ':app'
+include ':lib'
