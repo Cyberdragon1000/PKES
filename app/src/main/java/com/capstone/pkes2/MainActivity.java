@@ -1,11 +1,18 @@
 package com.capstone.pkes2;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 
 import com.google.android.material.snackbar.Snackbar;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.util.Log;
 import android.view.View;
 
 import androidx.navigation.NavController;
@@ -17,6 +24,11 @@ import com.capstone.pkes2.databinding.ActivityMainBinding;
 
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
+
+import java.util.Set;
+
+import static android.content.ContentValues.TAG;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -43,6 +55,19 @@ public class MainActivity extends AppCompatActivity {
                         .setAction("Action", null).show();
             }
         });
+
+//        Button btnScan = findViewById(R.id.btnScan);
+//        btnScan.setOnClickListener(mScan);
+//
+//        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+//        registerReceiver(mReceiver, filter);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Don't forget to unregister the ACTION_FOUND receiver.
+//        unregisterReceiver(mReceiver);
     }
 
     @Override
@@ -73,4 +98,37 @@ public class MainActivity extends AppCompatActivity {
         return NavigationUI.navigateUp(navController, appBarConfiguration)
                 || super.onSupportNavigateUp();
     }
+
+    // Create a BroadcastReceiver for ACTION_FOUND.
+//    private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
+//        public void onReceive(Context context, Intent intent) {
+//            Log.d("onReceive", "onReceive: ");
+//            String action = intent.getAction();
+//            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+//                // Discovery has found a device. Get the BluetoothDevice
+//                // object and its info from the Intent.
+//                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+//                String deviceName = device.getName();
+//                String deviceHardwareAddress = device.getAddress(); // MAC address
+//
+//                Log.i("Device Name: " , "device " + deviceName);
+//                Log.i("deviceHardwareAddress " , "hard"  + deviceHardwareAddress);
+//            }
+//        }
+//    };
+
+//    private void makeDiscoverable() {
+//        int requestCode = 1;
+//        Intent discoverableIntent =
+//                new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+//        discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
+//        startActivityForResult(discoverableIntent, requestCode);
+//    }
+
+//    private Button.OnClickListener mScan = arg0 -> {
+//        final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+//        Log.d(TAG, "onCreate: starting discovery");
+////        btArrayAdapter.clear();
+//        mBluetoothAdapter.startDiscovery();
+//    };
 }
