@@ -13,7 +13,6 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -107,23 +106,22 @@ public class CarMode extends Fragment {
             while (true) {
                 try {
                     socket = mmServerSocket.accept();
+                    if (socket != null) {
+                        // A connection was accepted. Perform work associated with
+                        // the connection in a separate thread.
+//                    manageMyConnectedSocket(socket);
+                        updateServerStatus("Connected client, stopping server");
+                        mConnectedThread = new ConnectedThread(socket, mHandler);
+                        mConnectedThread.start();
+                        try {
+                            mmServerSocket.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        break;
+                    }
                 } catch (IOException e) {
                     Log.e("AcceptThread", "Socket's accept() method failed", e);
-                    break;
-                }
-
-                if (socket != null) {
-                    // A connection was accepted. Perform work associated with
-                    // the connection in a separate thread.
-//                    manageMyConnectedSocket(socket);
-                    updateServerStatus("Connected client, stopping server");
-                    mConnectedThread = new ConnectedThread(socket, mHandler);
-                    mConnectedThread.start();
-                    try {
-                        mmServerSocket.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
                     break;
                 }
             }

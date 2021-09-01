@@ -9,4 +9,15 @@
 
     <string name="hello_first_fragment">Hello first fragment</string>
     <string name="hello_second_fragment">Hello second fragment. Arg: %1$s</string>
+    <string name="action_bar">action_bar</string>
+    <string name="car_mode">Car Mode</string>
+    <string name="phone_mode">Phone Mode</string>
+    <string name="connect_to_server">Connect To Server</string>
+    <string name="scan">SCAN</string>
+    <string name="no_device_selected">No Device Selected</string>
+    <string name="not_connected">Not Connected</string>
+    <string name="send_ping">Send Ping</string>
+    <string name="server_listen">SERVER LISTEN</string>
+    <string name="make_discoverable">Make Discoverable</string>
+    <string name="server_not_started">Server not started</string>
 </resources>

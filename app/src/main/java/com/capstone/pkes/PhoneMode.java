@@ -17,7 +17,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
@@ -45,7 +44,7 @@ public class PhoneMode extends Fragment {
     String DEVICE_NAME = "device_name";
 
     final int MESSAGE_READ = 0;
-    final int MESSAGE_WRITE = 1;
+    //final int MESSAGE_WRITE = 1;
     final int MESSAGE_TOAST = 2;
     final int MESSAGE_STATE_CHANGE = 3;
 
@@ -116,8 +115,8 @@ public class PhoneMode extends Fragment {
         mBluetoothAdapter.startDiscovery();
     };
 
-    private Button.OnClickListener mConnect = arg0 -> {
-        final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+    private final Button.OnClickListener mConnect = arg0 -> {
+        //final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Log.d(TAG, "onCreate: starting discovery");
         mConnectThread = new ConnectThread(selectedDevice);
         mConnectThread.start();
@@ -125,13 +124,11 @@ public class PhoneMode extends Fragment {
 
     private class ConnectThread extends Thread {
         private final BluetoothSocket mmSocket;
-        private final BluetoothDevice mmDevice;
 
         public ConnectThread(BluetoothDevice device) {
             // Use a temporary object that is later assigned to mmSocket
             // because mmSocket is final.
             BluetoothSocket tmp = null;
-            mmDevice = device;
             try {
                 // Get a BluetoothSocket to connect with the given BluetoothDevice.
                 // MY_UUID is the app's UUID string, also used in the server code.
