@@ -35,7 +35,6 @@ import com.capstone.pkes.databinding.ActivityMainBinding;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
 /*
@@ -78,13 +77,10 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
-
     /////////////////////////////////////////////////////////////////////////////////////
-    //==========================Cipher variables========================================
+    //==========================Encryption variables========================================
     ////////////////////////////////////////////////////////////////////////////////////
-    static byte[] salt = new byte[8],IV = new byte[16];
-    byte[] key,ciphered;
-    String key_text="the_password",deciphered_text;//any key string and decipher_msg
+    String key=null,ciphered=null,deciphered_text=null;//var for storing key ,ciphered text and deciphered text
     //-----------------------------------------------------------------------------------
 
 
@@ -167,13 +163,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }
         //-----------------------------------------------------------------------------------
 
-        /////////////////////////////////////////////////////////////////////////////////////
-        //==========================Crypto Initialization========================================
-        ////////////////////////////////////////////////////////////////////////////////////
-        //note needs to be randomized for each use
-        dataencryption.random.nextBytes(salt);//salt for key gen
-        dataencryption.random.nextBytes(IV);//iv for encryption
-        //-----------------------------------------------------------------------------------
 
         testing();//just a func for testing vars
     }
@@ -313,19 +302,18 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
 
     public void testing(){
-            byte[] key_of_128length= new byte[0];
 
             try {
-                key_of_128length = dataencryption.create_hash_of_textkey(key_text, salt);
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+                key= data_encryption.generate_key();
+
+            } catch (NoSuchAlgorithmException e) {
                 e.printStackTrace();
             }
 
-            key= dataencryption.generate_encryptionkey(key_of_128length);
 
-            ciphered = dataencryption.encrypt(timestamp.gettimestamp(),key, IV);
+            ciphered = data_encryption.encrypt(timestamp.gettimestamp(),key);
 
-            deciphered_text = dataencryption.decrypt(ciphered,key, IV);
+            deciphered_text = data_encryption.decrypt(ciphered,key);
 
     }
 
