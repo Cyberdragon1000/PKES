@@ -24,8 +24,10 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 
@@ -92,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
         setSupportActionBar(binding.toolbar);
 
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
+        NavController navController = getNavController();
         appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
 
@@ -290,6 +292,14 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
 
     }
 
-
+    @NonNull
+    private NavController getNavController() {
+        Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment_content_main);
+        if (!(fragment instanceof NavHostFragment)) {
+            throw new IllegalStateException("Activity " + this
+                    + " does not have a NavHostFragment");
+        }
+        return ((NavHostFragment) fragment).getNavController();
+    }
 
 }
