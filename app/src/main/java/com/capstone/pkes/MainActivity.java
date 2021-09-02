@@ -38,6 +38,43 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.util.ArrayList;
 
+/*
+ *
+ * PKES
+ * ----
+ *
+ * Car registers for wake up
+ * Phone advertises wth BLE
+ *
+ * Phone connects to car over Bluetooth
+ *
+ * Phone sends:
+ *   - Encrypt(LOCATION_REQUEST, Timestamp(Self))
+ *
+ * Car verifies:
+ *   - Timestamp(now) - Timestamp(Phone) <= 1 minute
+ *
+ * Car replies with:
+ *   - Encrypt(LOCATION_RESPONSE, Timestamp, Location)
+ *
+ * Phone calculates own:
+ *   - Timestamp
+ *   - Location
+ *   - Activity
+ *
+ * Phone verifies:
+ *   - Timestamp(Self) - Timestamp(Car) <= 1 minute
+ *   - Loc(Self) to Loc(Car) <= X meters
+ *   - Activity is walking/jogging
+ *
+ * Phone sends:
+ *   - Encrypt(UNLOCK_REQUEST, timestamp(self))
+ *
+ * Car verifies:
+ *   - Timestamp(now) - Timestamp(Phone) <= 1 minute
+ *
+ * Car unlocks.
+ * */
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 

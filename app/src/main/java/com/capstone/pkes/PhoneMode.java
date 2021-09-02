@@ -26,25 +26,23 @@ import com.capstone.pkes.databinding.FragmentFirstBinding;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 public class PhoneMode extends Fragment {
 
     private static final String TAG = "PKES-PhoneMode";
 
+    private static final String CAR_BT_DEVICE_NAME = "Nexus";
+
     private FragmentFirstBinding binding;
 
-    private BluetoothDevice selectedDevice;
+    private BluetoothDevice selectedDevice = null;
     ConnectThread mConnectThread;
     ConnectedThread mConnectedThread;
-//    Handler mHandler;
-
-    final int MESSAGE_DEVICE_NAME = 4;
-    //    final int MESSAGE_TOAST = 5;
-    String DEVICE_NAME = "device_name";
 
     final int MESSAGE_READ = 0;
-    //final int MESSAGE_WRITE = 1;
+    final int MESSAGE_WRITE = 1;
     final int MESSAGE_TOAST = 2;
     final int MESSAGE_STATE_CHANGE = 3;
 
@@ -67,7 +65,7 @@ public class PhoneMode extends Fragment {
         binding.buttonFirst.setOnClickListener(view12 -> NavHostFragment.findNavController(PhoneMode.this)
                 .navigate(R.id.action_FirstFragment_to_SecondFragment));
 
-        binding.btnScan.setOnClickListener(mScan);
+        binding.btnSelectOrScan.setOnClickListener(mSelectOrScanForCar);
         binding.btnConnect.setOnClickListener(mConnect);
 
         binding.btnSendPing.setOnClickListener(view1 -> mConnectedThread.write("PING".getBytes()));
@@ -87,7 +85,7 @@ public class PhoneMode extends Fragment {
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
         @SuppressLint("SetTextI18n")
         public void onReceive(Context context, Intent intent) {
-            Log.d(TAG, "onReceive: ");
+            Log.d(TAG, "mReceiver: ");
             String action = intent.getAction();
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 // Discovery has found a device. Get the BluetoothDevice
@@ -96,28 +94,44 @@ public class PhoneMode extends Fragment {
                 String deviceName = device.getName();
                 String deviceHardwareAddress = device.getAddress(); // MAC address
 
-                Log.i(TAG, "Device Name: " + deviceName);
-                Log.i(TAG, "deviceHardwareAddress: "  + deviceHardwareAddress);
-                if (deviceName.contains("Nexus")) {
+                Log.i(TAG, "discovery: Device Name: " + deviceName);
+                Log.i(TAG, "discovery: deviceHardwareAddress: " + deviceHardwareAddress);
+                if (deviceName.contains(CAR_BT_DEVICE_NAME)) {
                     selectedDevice = device;
-                    binding.tvDeviceInfo.setText("Selected Device: " + deviceName + " (" + deviceHardwareAddress +")");
+                    binding.tvDeviceInfo.setText("Selected Device: " + deviceName + " (" + deviceHardwareAddress + ")");
                     Log.d(TAG, "selected device ^");
                 }
             }
         }
     };
 
-    private final Button.OnClickListener mScan = arg0 -> {
+    @SuppressLint("SetTextI18n")
+    private final Button.OnClickListener mSelectOrScanForCar = arg0 -> {
         final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        Log.d(TAG, "onCreate: starting discovery");
-//        btArrayAdapter.clear();
-        mBluetoothAdapter.cancelDiscovery();
-        mBluetoothAdapter.startDiscovery();
+
+        if (!mBluetoothAdapter.isEnabled()) {
+            mBluetoothAdapter.enable();
+        }
+
+        Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
+        if (pairedDevices.size() > 0) {
+            for (BluetoothDevice device : pairedDevices) {
+                if (device.getName().contains(CAR_BT_DEVICE_NAME)) {
+                    selectedDevice = device;
+                    binding.tvDeviceInfo.setText("Selected Device: " + device.getName() + " (" + device.getAddress() + ")");
+                }
+            }
+        }
+
+        if (selectedDevice == null) {
+            Log.d(TAG, "mSelectOrScanForCar: starting discovery");
+            mBluetoothAdapter.cancelDiscovery();
+            mBluetoothAdapter.startDiscovery();
+        }
     };
 
     private final Button.OnClickListener mConnect = arg0 -> {
-        //final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        Log.d(TAG, "onCreate: starting discovery");
+        Log.d(TAG, "mConnect: starting discovery");
         mConnectThread = new ConnectThread(selectedDevice);
         mConnectThread.start();
     };
@@ -185,7 +199,6 @@ public class PhoneMode extends Fragment {
         @SuppressLint("HandlerLeak")
         @Override
         public void handleMessage(Message msg) {
-//            FragmentActivity activity = getActivity();
             switch (msg.what) {
                 case MESSAGE_STATE_CHANGE:
                     switch (msg.arg1) {
@@ -194,12 +207,10 @@ public class PhoneMode extends Fragment {
                             updateConnectionStatus("Connected");
                             break;
                         case ConnectedThread.STATE_CONNECTING:
-//                            setStatus(R.string.title_connecting);
                             Log.d(TAG, "handleMessage: Connecting...");
                             break;
                         case ConnectedThread.STATE_LISTEN:
                         case ConnectedThread.STATE_NONE:
-//                            setStatus(R.string.title_not_connected);
                             Log.d(TAG, "handleMessage: Not connected (anymore?)!");
                             updateConnectionStatus("Not Connected");
                             break;
@@ -209,7 +220,6 @@ public class PhoneMode extends Fragment {
                     byte[] readBuf = (byte[]) msg.obj;
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, msg.arg1);
-//                    mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
                     Log.d(TAG, "handleMessage: read: " + readMessage);
 
                     switch (readMessage) {
@@ -223,11 +233,6 @@ public class PhoneMode extends Fragment {
                                     Snackbar.LENGTH_SHORT).show();
                             break;
                     }
-                    break;
-                case MESSAGE_DEVICE_NAME:
-                    // save the connected device's name
-                    mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-                    Log.d(TAG, "handleMessage: set device name: " + mConnectedDeviceName);
                     break;
                 case MESSAGE_TOAST:
                     Log.d(TAG, "handleMessage: toast: " + msg.getData().getString("toast"));
