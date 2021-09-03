@@ -32,14 +32,13 @@ import java.util.Arrays;
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
-    static byte[] salt = new byte[8];
-    static byte[] IV = new byte[16];
     TextView t1,t2,t3,t4;// text views simply for viewing
     LocationManager locationManager;// for gps location
     SensorManager mSensorManager;// for sensor data
     private Sensor mAccelerometer;// for acceleration data
     private static final int PERMISSION_REQUEST_CODE = 100; //perm code, simply a number
     double latitude_key =0,longitude_key=0, latitude_car =Math.toRadians(60),longitude_car=Math.toRadians(60);
+    String key=null,ciphered=null,deciphered_text=null;//var for storing key ,ciphered text and deciphered text
 
 
     @Override
@@ -134,25 +133,21 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     @SuppressLint("SetTextI18n")
     public void testing(){
 
-            String key_text="the_password";//any key string
-            dataencryption.random.nextBytes(salt);//salt for key gen
-            dataencryption.random.nextBytes(IV);//iv for encryption
 
-            byte[] key_of_128length= new byte[0];
+        try {
+            key= data_encryption.generate_key();
 
-            try {
-                key_of_128length = dataencryption.create_hash_of_textkey(key_text, salt);
-            } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-                e.printStackTrace();
-            }
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
 
-            byte[] key= dataencryption.generate_encryptionkey(key_of_128length);
 
-            byte[] ciphered = dataencryption.encrypt(timestamp.gettimestamp(),key, IV);
+        ciphered = data_encryption.encrypt(timestamp.gettimestamp(),key);
 
-            String deciphered= dataencryption.decrypt(ciphered,key, IV);
+        deciphered_text = data_encryption.decrypt(ciphered,key);
 
-            t3.setText(deciphered+"\n"+ Arrays.toString(key) +"\n"+ Arrays.toString(ciphered)+"\n");
+
+            t3.setText(deciphered_text+"\n"+ key +"\n"+ ciphered+"\n");
 
 
 
