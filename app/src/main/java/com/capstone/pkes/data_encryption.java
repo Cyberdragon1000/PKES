@@ -1,6 +1,7 @@
 package com.capstone.pkes;
 
 import android.util.Base64;
+import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
@@ -19,16 +20,21 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class data_encryption {
 
+    private static final String TAG = "PKES-data_encryption";
+
+    static String key = Constants.SECRET_SHARED_KEY;
+
     //generates the encryption key for AES using given key of length 256
-    static String generate_key() throws NoSuchAlgorithmException {
+    static void generate_key() throws NoSuchAlgorithmException {
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
         keyGen.init(256);
         SecretKey encryption_key = keyGen.generateKey();
-        return Base64.encodeToString(encryption_key.getEncoded(), Base64.DEFAULT);
+        key = Base64.encodeToString(encryption_key.getEncoded(), Base64.DEFAULT);
+        Log.d(TAG, "generate_key: " + key);
     }
 
     //encrypts the data takes inputs of message text and key
-    static String encrypt(String text, String key)
+    static String encrypt(String text)
     {
 
         String encryptedText = "";
@@ -66,7 +72,7 @@ public class data_encryption {
 
 
     //decrypts the data takes inputs of encrypted text and key
-    static String decrypt(String encryptedString, String key)
+    static String decrypt(String encryptedString)
     {
 
         String decryptedText = "";

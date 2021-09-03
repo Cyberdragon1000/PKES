@@ -16,6 +16,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -78,17 +79,11 @@ import java.util.ArrayList;
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
 
     /////////////////////////////////////////////////////////////////////////////////////
-    //==========================Encryption variables========================================
-    ////////////////////////////////////////////////////////////////////////////////////
-    String key=null,ciphered=null,deciphered_text=null;//var for storing key ,ciphered text and deciphered text
-    //-----------------------------------------------------------------------------------
-
-
-    /////////////////////////////////////////////////////////////////////////////////////
     //==========================GPS variables========================================
     ////////////////////////////////////////////////////////////////////////////////////
     LocationManager locationManager;// for gps location
     double latitude_key =0,longitude_key=0, latitude_car =Math.toRadians(60),longitude_car=Math.toRadians(60);
+    Location location;
     double result_distance;
     //-----------------------------------------------------------------------------------
 
@@ -163,8 +158,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }
         //-----------------------------------------------------------------------------------
 
-
-        testing();//just a func for testing vars
+        // Generate key - commented out as both phone and car must use the same hardcoded key
+//        try {
+//            data_encryption.generate_key();
+//        } catch (NoSuchAlgorithmException e) {
+//            e.printStackTrace();
+//        }
     }
 
     public void onResume() {
@@ -191,6 +190,7 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         //get key gps co-ords
         latitude_key  = Math.toRadians(loc.getLatitude());
         longitude_key = Math.toRadians(loc.getLongitude());
+        location = loc;
 
         //get distance calc
         result_distance = gps_distance.calculate_distance(latitude_key,longitude_key, latitude_car,longitude_car);
@@ -300,23 +300,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     }
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-    public void testing(){
-
-            try {
-                key= data_encryption.generate_key();
-
-            } catch (NoSuchAlgorithmException e) {
-                e.printStackTrace();
-            }
-
-
-            ciphered = data_encryption.encrypt(timestamp.gettimestamp(),key);
-
-            deciphered_text = data_encryption.decrypt(ciphered,key);
-
-    }
-
     @NonNull
     private NavController getNavController() {
         Fragment fragment = getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment_content_main);
@@ -325,6 +308,10 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
                     + " does not have a NavHostFragment");
         }
         return ((NavHostFragment) fragment).getNavController();
+    }
+
+    public Location getLocation() {
+        return location;
     }
 
 }

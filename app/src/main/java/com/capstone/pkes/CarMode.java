@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,18 +31,11 @@ public class CarMode extends Fragment {
 
     private FragmentSecondBinding binding;
 
-//    Handler mHandler;
-
-    final int MESSAGE_DEVICE_NAME = 4;
-    //    final int MESSAGE_TOAST = 5;
-    String DEVICE_NAME = "device_name";
-
     final int MESSAGE_READ = 0;
     final int MESSAGE_WRITE = 1;
     final int MESSAGE_TOAST = 2;
     final int MESSAGE_STATE_CHANGE = 3;
 
-    String mConnectedDeviceName;
     private ConnectedThread mConnectedThread;
 
     @Override
@@ -92,7 +86,7 @@ public class CarMode extends Fragment {
             BluetoothServerSocket tmp = null;
             try {
                 // MY_UUID is the app's UUID string, also used by the client code.
-                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord("pkes", UUID.fromString("8b483661-b95a-41f4-acd4-3c9b97d7718d"));
+                tmp = mBluetoothAdapter.listenUsingRfcommWithServiceRecord("pkes", UUID.fromString(Constants.BT_SERVICE_UUID));
             } catch (IOException e) {
                 Log.e("AcceptThread", "Socket's listen() method failed", e);
                 updateServerStatus("Server not running");
@@ -152,28 +146,18 @@ public class CarMode extends Fragment {
                             Log.d(TAG, "handleMessage: Connected!");
                             break;
                         case ConnectedThread.STATE_CONNECTING:
-//                            setStatus(R.string.title_connecting);
                             Log.d(TAG, "handleMessage: Connecting...");
                             break;
                         case ConnectedThread.STATE_LISTEN:
                         case ConnectedThread.STATE_NONE:
-//                            setStatus(R.string.title_not_connected);
                             Log.d(TAG, "handleMessage: Not connected (anymore?)!");
                             break;
                     }
-                    break;
-                case MESSAGE_WRITE:
-                    byte[] writeBuf = (byte[]) msg.obj;
-                    // construct a string from the buffer
-                    String writeMessage = new String(writeBuf);
-//                    mConversationArrayAdapter.add("Me:  " + writeMessage);
-                    Log.d(TAG, "handleMessage: write: " + writeMessage);
                     break;
                 case MESSAGE_READ:
                     byte[] readBuf = (byte[]) msg.obj;
                     // construct a string from the valid bytes in the buffer
                     String readMessage = new String(readBuf, 0, msg.arg1);
-//                    mConversationArrayAdapter.add(mConnectedDeviceName + ":  " + readMessage);
                     Log.d(TAG, "handleMessage: read: " + readMessage);
 
                     switch (readMessage) {
@@ -181,17 +165,41 @@ public class CarMode extends Fragment {
                             Snackbar.make(binding.getRoot(), "Received Ping",
                                     Snackbar.LENGTH_SHORT).show();
                             mConnectedThread.write("PONG".getBytes());
-                            break;
+                            return;
                         case "PONG":
                             Snackbar.make(binding.getRoot(), "Received Ping Reply",
                                     Snackbar.LENGTH_SHORT).show();
+                            return;
+                        case "LOCK":
+                            updateLockStatus(true);
+                            return;
+                    }
+
+                    String[] actionPayload = data_encryption.decrypt(readMessage).split("\\|");
+                    int action = Integer.parseInt(actionPayload[1]);
+                    long timestamp = Long.parseLong(actionPayload[2]);
+                    long timestampNow = System.currentTimeMillis();
+
+                    switch (action) {
+                        case Constants.ACTION_LOCATION_REQUEST:
+                            Log.d(TAG, "action: Location Request: " + actionPayload);
+
+                            if ((timestampNow - timestamp) > 1*60*1e3) break;
+
+                            // TODO: Use GPS coordinates in response
+                            String locationResponsePayload = "A|" + Constants.ACTION_LOCATION_RESPONSE + "|" + timestampNow + "|" + "1.123456|2.34567";
+                            mConnectedThread.write(data_encryption.encrypt(locationResponsePayload).getBytes());
+                            break;
+                        case Constants.ACTION_UNLOCK_REQUEST:
+                            Log.d(TAG, "action: Unlock Request: " + actionPayload);
+                            if ((timestampNow - timestamp) > 1*60*1e3) break;
+
+                            updateLockStatus(false);
+                            break;
+                        default:
+                            Log.d(TAG, "action: Unknown action: " + actionPayload);
                             break;
                     }
-                    break;
-                case MESSAGE_DEVICE_NAME:
-                    // save the connected device's name
-                    mConnectedDeviceName = msg.getData().getString(DEVICE_NAME);
-                    Log.d(TAG, "handleMessage: set device name: " + mConnectedDeviceName);
                     break;
                 case MESSAGE_TOAST:
                     Log.d(TAG, "handleMessage: toast: " + msg.getData().getString("toast"));
@@ -202,6 +210,19 @@ public class CarMode extends Fragment {
 
     private void updateServerStatus(String text) {
         new Handler(Looper.getMainLooper()).post(() -> binding.tvServerStatus.setText(text));
+    }
+
+    @SuppressLint("SetTextI18n")
+    private void updateLockStatus(Boolean locked) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (locked) {
+                binding.tvLockText.setText("Locked");
+                binding.tvLockText.setTextColor(Color.GREEN);
+            } else {
+                binding.tvLockText.setText("Unlocked");
+                binding.tvLockText.setTextColor(Color.RED);
+            }
+        });
     }
 
 }

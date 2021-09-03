@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,14 +27,13 @@ import com.capstone.pkes.databinding.FragmentFirstBinding;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.UUID;
 
 public class PhoneMode extends Fragment {
 
     private static final String TAG = "PKES-PhoneMode";
-
-    private static final String CAR_BT_DEVICE_NAME = "Nexus";
 
     private FragmentFirstBinding binding;
 
@@ -45,8 +45,6 @@ public class PhoneMode extends Fragment {
     final int MESSAGE_WRITE = 1;
     final int MESSAGE_TOAST = 2;
     final int MESSAGE_STATE_CHANGE = 3;
-
-    String mConnectedDeviceName;
 
     @Override
     public View onCreateView(
@@ -67,6 +65,8 @@ public class PhoneMode extends Fragment {
 
         binding.btnSelectOrScan.setOnClickListener(mSelectOrScanForCar);
         binding.btnConnect.setOnClickListener(mConnect);
+        binding.btnUnlock.setOnClickListener(mUnlock);
+        binding.btnLock.setOnClickListener(view1 -> mConnectedThread.write("LOCK".getBytes()));
 
         binding.btnSendPing.setOnClickListener(view1 -> mConnectedThread.write("PING".getBytes()));
 
@@ -96,7 +96,7 @@ public class PhoneMode extends Fragment {
 
                 Log.i(TAG, "discovery: Device Name: " + deviceName);
                 Log.i(TAG, "discovery: deviceHardwareAddress: " + deviceHardwareAddress);
-                if (deviceName.contains(CAR_BT_DEVICE_NAME)) {
+                if (deviceName.contains(Constants.CAR_BT_DEVICE_NAME)) {
                     selectedDevice = device;
                     binding.tvDeviceInfo.setText("Selected Device: " + deviceName + " (" + deviceHardwareAddress + ")");
                     Log.d(TAG, "selected device ^");
@@ -116,7 +116,7 @@ public class PhoneMode extends Fragment {
         Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
         if (pairedDevices.size() > 0) {
             for (BluetoothDevice device : pairedDevices) {
-                if (device.getName().contains(CAR_BT_DEVICE_NAME)) {
+                if (device.getName().contains(Constants.CAR_BT_DEVICE_NAME)) {
                     selectedDevice = device;
                     binding.tvDeviceInfo.setText("Selected Device: " + device.getName() + " (" + device.getAddress() + ")");
                 }
@@ -136,6 +136,13 @@ public class PhoneMode extends Fragment {
         mConnectThread.start();
     };
 
+    private final Button.OnClickListener mUnlock = arg0 -> {
+        Log.d(TAG, "mUnlock:");
+        long timestampNow = System.currentTimeMillis();
+        String locationRequestPayload = "A|" + Constants.ACTION_LOCATION_REQUEST + "|" + timestampNow;
+        mConnectedThread.write(data_encryption.encrypt(locationRequestPayload).getBytes());
+    };
+
     private class ConnectThread extends Thread {
         private final BluetoothSocket mmSocket;
 
@@ -146,8 +153,7 @@ public class PhoneMode extends Fragment {
             try {
                 // Get a BluetoothSocket to connect with the given BluetoothDevice.
                 // MY_UUID is the app's UUID string, also used in the server code.
-//                device.getUuids();
-                tmp = device.createRfcommSocketToServiceRecord(UUID.fromString("8b483661-b95a-41f4-acd4-3c9b97d7718d"));
+                tmp = device.createRfcommSocketToServiceRecord(UUID.fromString(Constants.BT_SERVICE_UUID));
             } catch (IOException e) {
                 Log.e(TAG, "Socket's create() method failed", e);
             }
@@ -180,7 +186,6 @@ public class PhoneMode extends Fragment {
             mConnectedThread.start();
 
             updateConnectionStatus("Connected");
-            mConnectedThread.write("TEST FROM PHONE TO CAR".getBytes());
         }
 
         // Closes the client socket and causes the thread to finish.
@@ -227,10 +232,41 @@ public class PhoneMode extends Fragment {
                             Snackbar.make(binding.getRoot(), "Received Ping",
                                     Snackbar.LENGTH_SHORT).show();
                             mConnectedThread.write("PONG".getBytes());
-                            break;
+                            return;
                         case "PONG":
                             Snackbar.make(binding.getRoot(), "Received Ping Reply",
                                     Snackbar.LENGTH_SHORT).show();
+                            return;
+                    }
+
+                    String[] actionPayload = data_encryption.decrypt(readMessage).split("\\|");
+                    int action = Integer.parseInt(actionPayload[1]);
+                    long timestamp = Long.parseLong(actionPayload[2]);
+
+                    switch (action) {
+                        case Constants.ACTION_LOCATION_RESPONSE:
+                            Log.d(TAG, "action: Location Response: " + actionPayload);
+                            double lat = Float.parseFloat(actionPayload[3]);
+                            double lng = Float.parseFloat(actionPayload[4]);
+//                                Location loc = new Location("");
+//                                loc.setLatitude(lat);
+//                                loc.setLongitude(lng);
+//                                Location locHere = getLocation();
+//                                Log.d(TAG, "action: Location Response: current location: " + locHere);
+//                                Log.d(TAG, "action: Location Response: received location: " + loc);
+//                                Log.d(TAG, "action: Location Response: distance (meters): " + locHere.distanceTo(loc));
+                            // TODO: Verify distance with current location
+
+                            long timestampNow = System.currentTimeMillis();
+                            if ((timestampNow - timestamp) > 1*60*1e3) break;
+
+                            // TODO: Activity recognition
+
+                            String unlockRequestPayload = "A|" + Constants.ACTION_UNLOCK_REQUEST + "|" + timestampNow;
+                            mConnectedThread.write(data_encryption.encrypt(unlockRequestPayload).getBytes());
+                            break;
+                        default:
+                            Log.d(TAG, "action: Unknown action: " + actionPayload);
                             break;
                     }
                     break;
@@ -243,5 +279,9 @@ public class PhoneMode extends Fragment {
 
     private void updateConnectionStatus(String text) {
         new Handler(Looper.getMainLooper()).post(() -> binding.tvConnectionStatus.setText(text));
+    }
+
+    private Location getLocation() {
+        return ((MainActivity) getActivity()).getLocation();
     }
 }
