@@ -29,6 +29,8 @@ import com.google.android.material.snackbar.Snackbar;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 public class PhoneMode extends Fragment {
@@ -40,6 +42,8 @@ public class PhoneMode extends Fragment {
     private BluetoothDevice selectedDevice = null;
     ConnectThread mConnectThread;
     ConnectedThread mConnectedThread;
+    Location currentLocation = null;
+    Timer getLocationTimer = null;
 
     final int MESSAGE_READ = 0;
     final int MESSAGE_WRITE = 1;
@@ -72,12 +76,27 @@ public class PhoneMode extends Fragment {
 
         IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
         requireActivity().registerReceiver(mReceiver, filter);
+
+        // Get Location from main activity
+        getLocationTimer = new Timer();
+        getLocationTimer.scheduleAtFixedRate(new TimerTask(){
+            @Override
+            public void run(){
+                getLocation();
+                if (currentLocation != null) {
+                    updateLocationText("Location: " + currentLocation.toString());
+                }
+            }
+        },0,1000);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+        if (getLocationTimer != null) {
+            getLocationTimer.cancel();
+        }
         requireActivity().unregisterReceiver(mReceiver);
     }
 
@@ -248,14 +267,16 @@ public class PhoneMode extends Fragment {
                             Log.d(TAG, "action: Location Response: " + actionPayload);
                             double lat = Float.parseFloat(actionPayload[3]);
                             double lng = Float.parseFloat(actionPayload[4]);
-//                                Location loc = new Location("");
-//                                loc.setLatitude(lat);
-//                                loc.setLongitude(lng);
-//                                Location locHere = getLocation();
-//                                Log.d(TAG, "action: Location Response: current location: " + locHere);
-//                                Log.d(TAG, "action: Location Response: received location: " + loc);
-//                                Log.d(TAG, "action: Location Response: distance (meters): " + locHere.distanceTo(loc));
-                            // TODO: Verify distance with current location
+                            Location loc = new Location("");
+                            loc.setLatitude(lat);
+                            loc.setLongitude(lng);
+                            Location locHere = getLocation();
+                            float distance = locHere.distanceTo(loc); // in meters
+                            Log.d(TAG, "action: Location Response: current location: " + locHere);
+                            Log.d(TAG, "action: Location Response: received location: " + loc);
+                            Log.d(TAG, "action: Location Response: distance (meters): " + distance);
+
+                            if (distance > 10) break;
 
                             long timestampNow = System.currentTimeMillis();
                             if ((timestampNow - timestamp) > 1*60*1e3) break;
@@ -282,6 +303,11 @@ public class PhoneMode extends Fragment {
     }
 
     private Location getLocation() {
-        return ((MainActivity) getActivity()).getLocation();
+        currentLocation = ((MainActivity) getActivity()).getLocation();
+        return currentLocation;
+    }
+
+    private void updateLocationText(String text) {
+        new Handler(Looper.getMainLooper()).post(() -> binding.tvLocation.setText(text));
     }
 }

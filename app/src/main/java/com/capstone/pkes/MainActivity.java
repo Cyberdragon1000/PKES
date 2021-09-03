@@ -180,8 +180,6 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        // Don't forget to unregister the ACTION_FOUND receiver.
-        //        unregisterReceiver(mReceiver);
     }
 
     //GPS CO_ORDS AND DISTANCE CALC DONE HERE/////////////////////////////////////////////
@@ -195,6 +193,12 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         //get distance calc
         result_distance = gps_distance.calculate_distance(latitude_key,longitude_key, latitude_car,longitude_car);
     }
+    @Override
+    public void onProviderEnabled(@NonNull String provider) { }
+    @Override
+    public void onProviderDisabled(@NonNull String provider) { }
+    @Override
+    public void onStatusChanged(String provider, int status, Bundle extras) { }
     /////////////////////////////////////////////////////////////////////////////////
 
 

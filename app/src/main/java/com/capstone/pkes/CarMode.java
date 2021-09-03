@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
 import android.graphics.Color;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -23,6 +24,8 @@ import com.capstone.pkes.databinding.FragmentSecondBinding;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 
 public class CarMode extends Fragment {
@@ -37,6 +40,8 @@ public class CarMode extends Fragment {
     final int MESSAGE_STATE_CHANGE = 3;
 
     private ConnectedThread mConnectedThread;
+    Location currentLocation = null;
+    Timer getLocationTimer = null;
 
     @Override
     public View onCreateView(
@@ -68,12 +73,24 @@ public class CarMode extends Fragment {
             discoverableIntent.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300);
             startActivityForResult(discoverableIntent, 1);
         });
+
+        // Get Location from main activity
+        getLocationTimer = new Timer();
+        getLocationTimer.scheduleAtFixedRate(new TimerTask(){
+            @Override
+            public void run(){
+                getLocation();
+            }
+        },0,1000);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
         binding = null;
+        if (getLocationTimer != null) {
+            getLocationTimer.cancel();
+        }
     }
 
     private class AcceptThread extends Thread {
@@ -187,7 +204,7 @@ public class CarMode extends Fragment {
                             if ((timestampNow - timestamp) > 1*60*1e3) break;
 
                             // TODO: Use GPS coordinates in response
-                            String locationResponsePayload = "A|" + Constants.ACTION_LOCATION_RESPONSE + "|" + timestampNow + "|" + "1.123456|2.34567";
+                            String locationResponsePayload = "A|" + Constants.ACTION_LOCATION_RESPONSE + "|" + timestampNow + "|" + currentLocation.getLatitude() + "|" + currentLocation.getLongitude();
                             mConnectedThread.write(data_encryption.encrypt(locationResponsePayload).getBytes());
                             break;
                         case Constants.ACTION_UNLOCK_REQUEST:
@@ -225,4 +242,8 @@ public class CarMode extends Fragment {
         });
     }
 
+    private Location getLocation() {
+        currentLocation = ((MainActivity) getActivity()).getLocation();
+        return currentLocation;
+    }
 }
