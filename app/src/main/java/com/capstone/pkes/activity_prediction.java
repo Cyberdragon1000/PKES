@@ -35,7 +35,7 @@ public class activity_prediction {
     @SuppressLint("SetTextI18n")
     static float[] activityPrediction() {
         float[] results=null;
-        if (x.size() == N_SAMPLES && y.size() == N_SAMPLES && z.size() == N_SAMPLES) {
+        if (x.size() >= N_SAMPLES && y.size() >= N_SAMPLES && z.size() >= N_SAMPLES) {
             List<Float> data = new ArrayList<>();
             data.addAll(x);
             data.addAll(y);

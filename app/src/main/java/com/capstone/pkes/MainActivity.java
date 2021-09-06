@@ -16,6 +16,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Pair;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -37,6 +38,7 @@ import com.google.android.material.snackbar.Snackbar;
 
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 /*
  *
@@ -77,6 +79,8 @@ import java.util.ArrayList;
  * */
 
 public class MainActivity extends AppCompatActivity implements LocationListener, SensorEventListener {
+
+    private static final String TAG = "PKES-MainActivity";
 
     /////////////////////////////////////////////////////////////////////////////////////
     //==========================GPS variables========================================
@@ -215,7 +219,11 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         }
 
         //prediction  results
-        results_activity = activity_prediction.activityPrediction();
+        float[] tmp = activity_prediction.activityPrediction();
+        if (tmp != null) {
+            results_activity = tmp;
+            Log.d(TAG, "onSensorChanged: " + Arrays.toString(results_activity));
+        }
         //aif( results!=null) {
             //we have valid results to display so code}
     }
@@ -318,4 +326,5 @@ public class MainActivity extends AppCompatActivity implements LocationListener,
         return location;
     }
 
+    public float[] getActivityPredictionResults() { return results_activity; }
 }

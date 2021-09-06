@@ -27,7 +27,8 @@ import com.capstone.pkes.databinding.FragmentFirstBinding;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -42,23 +43,25 @@ public class PhoneMode extends Fragment {
     private BluetoothDevice selectedDevice = null;
     ConnectThread mConnectThread;
     ConnectedThread mConnectedThread;
+    Timer timer = null;
     Location currentLocation = null;
-    Timer getLocationTimer = null;
+    float[] activityPredictionResults = null;
+    String predictedActivity = null;
 
     final int MESSAGE_READ = 0;
     final int MESSAGE_WRITE = 1;
     final int MESSAGE_TOAST = 2;
     final int MESSAGE_STATE_CHANGE = 3;
 
+    final String[] ACTIVITIES = {"Downstairs", "Jogging", "Sitting", "Standing", "Upstairs", "Walking"};
+
     @Override
     public View onCreateView(
             @NonNull LayoutInflater inflater, ViewGroup container,
             Bundle savedInstanceState
     ) {
-
         binding = FragmentFirstBinding.inflate(inflater, container, false);
         return binding.getRoot();
-
     }
 
     public void onViewCreated(@NonNull View view, Bundle savedInstanceState) {
@@ -78,25 +81,31 @@ public class PhoneMode extends Fragment {
         requireActivity().registerReceiver(mReceiver, filter);
 
         // Get Location from main activity
-        getLocationTimer = new Timer();
-        getLocationTimer.scheduleAtFixedRate(new TimerTask(){
+        timer = new Timer();
+        timer.scheduleAtFixedRate(new TimerTask(){
             @Override
             public void run(){
                 getLocation();
                 if (currentLocation != null) {
                     updateLocationText("Location: " + currentLocation.toString());
                 }
+                getActivityPredictionResults();
+                if (activityPredictionResults != null) {
+                    updateActivityText("Activity: " + predictedActivity);
+                }
             }
-        },0,1000);
+        },0,200);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        binding = null;
-        if (getLocationTimer != null) {
-            getLocationTimer.cancel();
+        if (timer != null) {
+            timer.cancel();
+            timer.purge();
+            timer = null;
         }
+        binding = null;
         requireActivity().unregisterReceiver(mReceiver);
     }
 
@@ -307,7 +316,36 @@ public class PhoneMode extends Fragment {
         return currentLocation;
     }
 
+    private float[] getActivityPredictionResults() {
+        activityPredictionResults = ((MainActivity) getActivity()).getActivityPredictionResults();
+        if (activityPredictionResults != null) {
+            predictedActivity = ACTIVITIES[maxIndex(activityPredictionResults)];
+        }
+        return activityPredictionResults;
+    }
+
     private void updateLocationText(String text) {
-        new Handler(Looper.getMainLooper()).post(() -> binding.tvLocation.setText(text));
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (binding != null) binding.tvLocation.setText(text);
+        });
+    }
+
+    private void updateActivityText(String text) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (binding != null) binding.tvActivity.setText(text);
+        });
+    }
+
+    public static int maxIndex(float[] list) {
+        int i=0, maxIndex=-1;
+        Float max=null;
+        for (Float x : list) {
+            if ((x != null) && ((max==null) || (x>max))) {
+                max = x;
+                maxIndex = i;
+            }
+            i++;
+        }
+        return maxIndex;
     }
 }
