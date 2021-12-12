@@ -25,18 +25,17 @@ public class data_encryption {
     static String key = Constants.SECRET_SHARED_KEY;
 
     //generates the encryption key for AES using given key of length 256
-    static void generate_key() throws NoSuchAlgorithmException {
-        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
-        keyGen.init(256);
-        SecretKey encryption_key = keyGen.generateKey();
-        key = Base64.encodeToString(encryption_key.getEncoded(), Base64.DEFAULT);
-        Log.d(TAG, "generate_key: " + key);
-    }
+//    static void generate_key() throws NoSuchAlgorithmException {
+//        KeyGenerator keyGen = KeyGenerator.getInstance("AES");
+//        keyGen.init(256);
+//        SecretKey encryption_key = keyGen.generateKey();
+//        key = Base64.encodeToString(encryption_key.getEncoded(), Base64.DEFAULT);
+//        Log.d(TAG, "generate_key: " + key);
+//    }
 
     //encrypts the data takes inputs of message text and key
     static String encrypt(String text)
     {
-
         String encryptedText = "";
         if (text == null || key == null)
             return encryptedText;

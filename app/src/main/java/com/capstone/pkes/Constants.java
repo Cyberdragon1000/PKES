@@ -1,11 +1,17 @@
 package com.capstone.pkes;
 
 public interface Constants {
-    String CAR_BT_DEVICE_NAME = "Nexus";
+    String CAR_BT_DEVICE_NAME = "ESP32";
     String BT_SERVICE_UUID = "8b483661-b95a-41f4-acd4-3c9b97d7718d";
+    String BT_BLE_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+    String BT_BLE_WRITE_UUID =   "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
+    String BT_BLE_NOTIFY_UUID =  "6E400003-B5A3-F393-E0A9-E50E24DCCA9E";
     String SECRET_SHARED_KEY = "1W+72k4yR3qzHZpoafJsEItx2dYHp4CpVZKkSYVMRSo=";
 
     int ACTION_LOCATION_REQUEST = 0;
     int ACTION_LOCATION_RESPONSE = 1;
     int ACTION_UNLOCK_REQUEST = 2;
+    int ACTION_LOCK_REQUEST = 3;
+
+    float DISTANCE_RANGE = 10; // in meters
 }
