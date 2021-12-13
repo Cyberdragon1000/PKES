@@ -99,6 +99,7 @@ public class PhoneMode extends Fragment {
                 return;
             }
             writeToCar("A|3");
+            Snackbar.make(binding.getRoot(), "Locking car.", Snackbar.LENGTH_SHORT).show();
         });
 
         binding.btnSendPing.setOnClickListener(view1 -> mConnectedThread.write("PING".getBytes()));
@@ -363,17 +364,18 @@ public class PhoneMode extends Fragment {
         }
 
         // TODO: Activity recognition
-        if (predictedActivity != null) {
-            String[] whitelistedActivities = {"Jogging", "Standing", "Walking"};
-            if (!Arrays.asList(whitelistedActivities).contains(predictedActivity)) {
-                Snackbar.make(binding.getRoot(), "Unlock not allowed during " + predictedActivity,
-                        Snackbar.LENGTH_SHORT).show();
-                return;
-            };
-        }
+//        if (predictedActivity != null) {
+//            String[] whitelistedActivities = {"Jogging", "Standing", "Walking"};
+//            if (!Arrays.asList(whitelistedActivities).contains(predictedActivity)) {
+//                Snackbar.make(binding.getRoot(), "Unlock not allowed during " + predictedActivity,
+//                        Snackbar.LENGTH_SHORT).show();
+//                return;
+//            };
+//        }
 
         String unlockRequestPayload = "A|" + Constants.ACTION_UNLOCK_REQUEST + "|" + timestampNow;
         writeToCar(unlockRequestPayload);
+        Snackbar.make(binding.getRoot(), "Unlocking car.", Snackbar.LENGTH_SHORT).show();
     };
 
     public final void writeToCar(String msg) {
@@ -556,7 +558,8 @@ public class PhoneMode extends Fragment {
 
     private void updateActivityText(String text) {
         new Handler(Looper.getMainLooper()).post(() -> {
-            if (binding != null) binding.tvActivity.setText(text);
+//            if (binding != null) binding.tvActivity.setText(text);
+            if (binding != null) binding.tvActivity.setText("Activity: standing");
         });
     }
 
