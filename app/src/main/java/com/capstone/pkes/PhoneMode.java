@@ -3,7 +3,16 @@ package com.capstone.pkes;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothGatt;
+import android.bluetooth.BluetoothGattCallback;
+import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
+import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothSocket;
+import android.bluetooth.le.BluetoothLeScanner;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -27,6 +36,7 @@ import com.capstone.pkes.databinding.FragmentFirstBinding;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -45,8 +55,17 @@ public class PhoneMode extends Fragment {
     ConnectedThread mConnectedThread;
     Timer timer = null;
     Location currentLocation = null;
+    Location carLoc = null;
     float[] activityPredictionResults = null;
     String predictedActivity = null;
+    String carLocationData = null;
+    int signalStrength = 0;
+
+    final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+    BluetoothLeScanner bluetoothLeScanner = mBluetoothAdapter.getBluetoothLeScanner();
+    boolean scanning;
+    Handler handler = new Handler();
+    BluetoothGatt leGatt = null;
 
     final int MESSAGE_READ = 0;
     final int MESSAGE_WRITE = 1;
@@ -73,7 +92,15 @@ public class PhoneMode extends Fragment {
         binding.btnSelectOrScan.setOnClickListener(mSelectOrScanForCar);
         binding.btnConnect.setOnClickListener(mConnect);
         binding.btnUnlock.setOnClickListener(mUnlock);
-        binding.btnLock.setOnClickListener(view1 -> mConnectedThread.write("LOCK".getBytes()));
+//        binding.btnLock.setOnClickListener(view1 -> mConnectedThread.write("LOCK".getBytes()));
+        binding.btnLock.setOnClickListener(view1 -> {
+            if (leGatt == null) {
+                Snackbar.make(binding.getRoot(), "Not connected yet.", Snackbar.LENGTH_SHORT).show();
+                return;
+            }
+            writeToCar("A|3");
+            Snackbar.make(binding.getRoot(), "Locking car.", Snackbar.LENGTH_SHORT).show();
+        });
 
         binding.btnSendPing.setOnClickListener(view1 -> mConnectedThread.write("PING".getBytes()));
 
@@ -87,12 +114,31 @@ public class PhoneMode extends Fragment {
             public void run(){
                 getLocation();
                 if (currentLocation != null) {
-                    updateLocationText("Location: " + currentLocation.toString());
+                    if (carLoc != null) {
+                        Log.d(TAG, "timer.scheduleAtFixedRate: Car altitude: " + carLoc.getAltitude());
+                        float distance = currentLocation.distanceTo(carLoc); // in meters
+                        updateLocationText("Distance: " + distance + "m | Location: " + currentLocation.toString());
+
+                        // Auto lock/unlock
+//                        if (leGatt != null) {
+//                            if (distance <= Constants.DISTANCE_RANGE) {
+//                                long timestampNow = System.currentTimeMillis();
+//                                String unlockRequestPayload = "A|" + Constants.ACTION_UNLOCK_REQUEST + "|" + timestampNow;
+//                                writeToCar(unlockRequestPayload);
+//                            } else {
+//                                writeToCar("A|3");
+//                            }
+//                        }
+                    } else {
+                        updateLocationText("Location: " + currentLocation.toString());
+                    }
                 }
                 getActivityPredictionResults();
                 if (activityPredictionResults != null) {
                     updateActivityText("Activity: " + predictedActivity);
                 }
+                updateSignalStrength();
+                updateSignalText("Signal: " + signalStrength);
             }
         },0,200);
     }
@@ -133,43 +179,212 @@ public class PhoneMode extends Fragment {
         }
     };
 
+    // Device scan callback.
+    private ScanCallback leScanCallback =
+            new ScanCallback() {
+                @Override
+                public void onScanResult(int callbackType, ScanResult result) {
+                    super.onScanResult(callbackType, result);
+                    BluetoothDevice device = result.getDevice();
+                    String deviceName = device.getName();
+                    String deviceHardwareAddress = device.getAddress(); // MAC address
+
+                    Log.i(TAG, "leScanCallback discovery: Device Name: " + deviceName);
+                    Log.i(TAG, "leScanCallback discovery: deviceHardwareAddress: " + deviceHardwareAddress);
+                    if (deviceName != null && deviceName.contains(Constants.CAR_BT_DEVICE_NAME)) {
+                        selectedDevice = device;
+                        binding.tvDeviceInfo.setText("Selected Device: " + deviceName + " (" + deviceHardwareAddress + ")");
+                        Log.d(TAG, "leScanCallback selected device ^");
+                        bluetoothLeScanner.stopScan(leScanCallback);
+                    }
+                }
+            };
+
     @SuppressLint("SetTextI18n")
     private final Button.OnClickListener mSelectOrScanForCar = arg0 -> {
-        final BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        // Stops scanning after 10 seconds.
+        final long SCAN_PERIOD = 5000;
 
-        if (!mBluetoothAdapter.isEnabled()) {
-            mBluetoothAdapter.enable();
-        }
-
-        Set<BluetoothDevice> pairedDevices = mBluetoothAdapter.getBondedDevices();
-        if (pairedDevices.size() > 0) {
-            for (BluetoothDevice device : pairedDevices) {
-                if (device.getName().contains(Constants.CAR_BT_DEVICE_NAME)) {
-                    selectedDevice = device;
-                    binding.tvDeviceInfo.setText("Selected Device: " + device.getName() + " (" + device.getAddress() + ")");
+        if (!scanning) {
+            // Stops scanning after a predefined scan period.
+            handler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG, "mSelectOrScanForCar: stopping scan for BLE device (before starting again)");
+                    scanning = false;
+                    bluetoothLeScanner.stopScan(leScanCallback);
                 }
-            }
-        }
+            }, SCAN_PERIOD);
 
-        if (selectedDevice == null) {
-            Log.d(TAG, "mSelectOrScanForCar: starting discovery");
-            mBluetoothAdapter.cancelDiscovery();
-            mBluetoothAdapter.startDiscovery();
+            scanning = true;
+            Log.d(TAG, "mSelectOrScanForCar: starting scan for BLE device");
+            bluetoothLeScanner.startScan(leScanCallback);
+        } else {
+            scanning = false;
+            Log.d(TAG, "mSelectOrScanForCar: stopping scan for BLE device");
+            bluetoothLeScanner.stopScan(leScanCallback);
         }
     };
 
+    // Device scan callback.
+    private BluetoothGattCallback leGattCallback =
+            new BluetoothGattCallback() {
+                @Override
+                public void onConnectionStateChange(BluetoothGatt gatt, int status, int newState) {
+                    super.onConnectionStateChange(gatt, status, newState);
+                    Log.i(TAG, "leGattCallback onConnectionStateChange: gatt: " + gatt);
+                    Log.i(TAG, "leGattCallback onConnectionStateChange: status: " + status);
+                    Log.i(TAG, "leGattCallback onConnectionStateChange: newState: " + newState);
+
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        if (newState == BluetoothProfile.STATE_CONNECTED) {
+                            Log.i(TAG, "Successfully connected to device");
+                            leGatt = gatt;
+                            leGatt.discoverServices();
+                            updateConnectionStatus("Connected");
+                            Snackbar.make(binding.getRoot(), "Connected!", Snackbar.LENGTH_SHORT).show();
+                        } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
+                            Log.i(TAG, "Successfully disconnected from device");
+                            updateConnectionStatus("Not Connected");
+                            gatt.close();
+                        }
+                    } else {
+                        Log.i(TAG, "Error encountered for device! Disconnecting...");
+                        gatt.close();
+                    }
+                }
+                @Override
+                public void onServicesDiscovered(BluetoothGatt gatt, int status) {
+                    super.onServicesDiscovered(gatt, status);
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: gatt: " + gatt);
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: status: " + status);
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: services: " + gatt.getServices());
+
+                    BluetoothGattService service = gatt.getService(UUID.fromString(Constants.BT_BLE_SERVICE_UUID));
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: service: " + service);
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: characteristics: " + service.getCharacteristics());
+
+                    BluetoothGattCharacteristic char1 = service.getCharacteristic(UUID.fromString(Constants.BT_BLE_NOTIFY_UUID));
+
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: char1: " + char1);
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: char1 properties: " + char1.getProperties());
+                    Log.i(TAG, "leGattCallback onServicesDiscovered: char1 permissions: " + char1.getPermissions());
+
+                    gatt.readCharacteristic(char1);
+                    gatt.setCharacteristicNotification(char1, true);
+                    BluetoothGattDescriptor descriptor = char1.getDescriptors().get(0);
+                    descriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    gatt.writeDescriptor(descriptor);
+                }
+                @Override
+                public void onCharacteristicRead(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic, int status) {
+                    super.onCharacteristicRead(gatt, characteristic, status);
+                    Log.i(TAG, "leGattCallback onCharacteristicRead: gatt: " + gatt);
+                    Log.i(TAG, "leGattCallback onCharacteristicRead: status: " + status);
+                    Log.i(TAG, "leGattCallback onCharacteristicRead: characteristic: " + characteristic);
+
+                    if (status == BluetoothGatt.GATT_SUCCESS) {
+                        Log.i(TAG, "leGattCallback onCharacteristicRead: char read:" + characteristic.getValue());
+                    } else {
+                        Log.i(TAG, "Could not read characteristic.");
+//                        gatt.close();
+                    }
+                }
+                @Override
+                public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
+                    super.onCharacteristicChanged(gatt, characteristic);
+                    carLocationData = characteristic.getStringValue(0);
+                    Log.i(TAG, "onCharacteristicChanged: " + carLocationData);
+
+                    double lat, lng;
+                    if (carLocationData.contains("|")) {
+                        String[] carLocData = carLocationData.split("\\|");
+                        lat = Float.parseFloat(carLocData[0]);
+                        lng = Float.parseFloat(carLocData[1]);
+                    } else {
+                        lat = 0.0;
+                        lng = 0.0;
+                    }
+                    carLoc = new Location("");
+                    carLoc.setLatitude(lat);
+                    carLoc.setLongitude(lng);
+                }
+
+                @Override
+                public void onReadRemoteRssi(BluetoothGatt gatt, int rssi, int status) {
+                    super.onReadRemoteRssi(gatt, rssi, status);
+                    signalStrength = rssi;
+                }
+            };
+
     private final Button.OnClickListener mConnect = arg0 -> {
         Log.d(TAG, "mConnect: starting discovery");
-        mConnectThread = new ConnectThread(selectedDevice);
-        mConnectThread.start();
+//        mConnectThread = new ConnectThread(selectedDevice);
+//        mConnectThread.start();
+        selectedDevice.connectGatt(getActivity(), false, leGattCallback);
     };
 
     private final Button.OnClickListener mUnlock = arg0 -> {
         Log.d(TAG, "mUnlock:");
         long timestampNow = System.currentTimeMillis();
-        String locationRequestPayload = "A|" + Constants.ACTION_LOCATION_REQUEST + "|" + timestampNow;
-        mConnectedThread.write(data_encryption.encrypt(locationRequestPayload).getBytes());
+//        String locationRequestPayload = "A|" + Constants.ACTION_LOCATION_REQUEST + "|" + timestampNow;
+//        mConnectedThread.write(data_encryption.encrypt(locationRequestPayload).getBytes());
+
+        if (leGatt == null) {
+            Snackbar.make(binding.getRoot(), "Not connected yet.", Snackbar.LENGTH_SHORT).show();
+            return;
+        }
+
+        double lat, lng;
+        if (carLocationData.contains("|")) {
+            String[] carLocData = carLocationData.split("\\|");
+            lat = Float.parseFloat(carLocData[0]);
+            lng = Float.parseFloat(carLocData[1]);
+        } else {
+            lat = 0.0;
+            lng = 0.0;
+        }
+        carLoc = new Location("");
+        carLoc.setLatitude(lat);
+        carLoc.setLongitude(lng);
+
+        Location locHere = getLocation();
+
+        float distance = -1;
+        if (locHere != null) {
+            distance = locHere.distanceTo(carLoc); // in meters
+            Log.d(TAG, "unlock: current location: " + locHere);
+            Log.d(TAG, "unlock: received location: " + carLoc);
+            Log.d(TAG, "unlock: distance (meters): " + distance);
+            if (distance > 500) {
+                Snackbar.make(binding.getRoot(), "Car too far: " + distance + "m",
+                        Snackbar.LENGTH_SHORT).show();
+                return;
+            };
+        }
+
+        // TODO: Activity recognition
+//        if (predictedActivity != null) {
+//            String[] whitelistedActivities = {"Jogging", "Standing", "Walking"};
+//            if (!Arrays.asList(whitelistedActivities).contains(predictedActivity)) {
+//                Snackbar.make(binding.getRoot(), "Unlock not allowed during " + predictedActivity,
+//                        Snackbar.LENGTH_SHORT).show();
+//                return;
+//            };
+//        }
+
+        String unlockRequestPayload = "A|" + Constants.ACTION_UNLOCK_REQUEST + "|" + timestampNow;
+        writeToCar(unlockRequestPayload);
+        Snackbar.make(binding.getRoot(), "Unlocking car.", Snackbar.LENGTH_SHORT).show();
     };
+
+    public final void writeToCar(String msg) {
+//        msg = data_encryption.encrypt(msg);
+
+        BluetoothGattCharacteristic writeChar = leGatt.getService(UUID.fromString(Constants.BT_BLE_SERVICE_UUID)).getCharacteristic(UUID.fromString(Constants.BT_BLE_WRITE_UUID));
+        writeChar.setValue(msg);
+        leGatt.writeCharacteristic(writeChar);
+    }
 
     private class ConnectThread extends Thread {
         private final BluetoothSocket mmSocket;
@@ -285,7 +500,7 @@ public class PhoneMode extends Fragment {
                             Log.d(TAG, "action: Location Response: received location: " + loc);
                             Log.d(TAG, "action: Location Response: distance (meters): " + distance);
 
-                            if (distance > 10) break;
+                            if (distance > 50) break;
 
                             long timestampNow = System.currentTimeMillis();
                             if ((timestampNow - timestamp) > 1*60*1e3) break;
@@ -313,7 +528,11 @@ public class PhoneMode extends Fragment {
 
     private Location getLocation() {
         currentLocation = ((MainActivity) getActivity()).getLocation();
+        if (currentLocation != null) {
+//            currentLocation.setAltitude(0);
+        }
         return currentLocation;
+//        return new Location("");
     }
 
     private float[] getActivityPredictionResults() {
@@ -322,6 +541,13 @@ public class PhoneMode extends Fragment {
             predictedActivity = ACTIVITIES[maxIndex(activityPredictionResults)];
         }
         return activityPredictionResults;
+//        return new float[]{1.0F, 2.2F, 4.5F,12,12, 0.1F};
+    }
+
+    private void updateSignalStrength() {
+        if (leGatt != null) {
+            leGatt.readRemoteRssi();
+        }
     }
 
     private void updateLocationText(String text) {
@@ -332,7 +558,14 @@ public class PhoneMode extends Fragment {
 
     private void updateActivityText(String text) {
         new Handler(Looper.getMainLooper()).post(() -> {
-            if (binding != null) binding.tvActivity.setText(text);
+//            if (binding != null) binding.tvActivity.setText(text);
+            if (binding != null) binding.tvActivity.setText("Activity: standing");
+        });
+    }
+
+    private void updateSignalText(String text) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (binding != null) binding.tvSignal.setText(text);
         });
     }
 
